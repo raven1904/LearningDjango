@@ -12,8 +12,18 @@
     Templates display
 No logic in templates. No HTML in views. 
   -->
-  <h1>Hello {{name}} 🎉</h1>
-  <p>Role: {{role}}</p>
+  {% extends 'core/base.html' %}
+
+  {% block title %}Home{% endblock %}
+
+  {% block content %}
+  <ul>
+    {% for student in students %}
+    <li>{{ student.name }} ({{ student.age }})</li>
+    {% endfor %}
+  </ul>
+  {% endblock %}
+
 </body>
 
 </html>
