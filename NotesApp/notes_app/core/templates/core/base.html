@@ -1,0 +1,22 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>{% block title %}Notes App{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/style.css' %}">
+
+</head>
+
+<body>
+
+  <header>
+    <h1>Notes App</h1>
+  </header>
+
+  {% block content %}{% endblock %}
+
+</body>
+
+</html>
