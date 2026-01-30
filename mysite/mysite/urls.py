@@ -16,13 +16,22 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from core.views import home
+from core.views import StudentListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home),
+    path('students/', StudentListView.as_view()), #.as_view() converts class → callable view
 ]
 
-'''
+'''StudentListView.as_view() does this:
+Django:
+    Creates object of the class
+    Checks HTTP method
+    Calls appropriate method (get())
+    Queries model
+    Renders template
+    CBVs are method-dispatch machines.
 Means:
 URL: /
     Call function: home
