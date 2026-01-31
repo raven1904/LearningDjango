@@ -4,29 +4,30 @@ from django.views.generic import (
 )
 from .models import Note
 from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-class NoteListView(ListView):
+class NoteListView(LoginRequiredMixin, ListView):
     model = Note
     template_name = 'core/note_list.html'
     context_object_name = 'notes'
 
-class NoteDetailView(DetailView):
+class NoteDetailView(LoginRequiredMixin, DetailView):
     model = Note
     template_name = 'core/note_detail.html'
 
-class NoteCreateView(CreateView):
+class NoteCreateView(LoginRequiredMixin, CreateView):
     model = Note
     fields = ['title', 'content']
     template_name = 'core/note_form.html'
     success_url = reverse_lazy('note-list')
 
-class NoteUpdateView(UpdateView):
+class NoteUpdateView(LoginRequiredMixin, UpdateView):
     model = Note
     fields = ['title', 'content']
     template_name = 'core/note_form.html'
     success_url = reverse_lazy('note-list')
 
-class NoteDeleteView(DeleteView):
+class NoteDeleteView(LoginRequiredMixin, DeleteView):
     model = Note
     template_name = 'core/note_confirm_delete.html'
     success_url = reverse_lazy('note-list')

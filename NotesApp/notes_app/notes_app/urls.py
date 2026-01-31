@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from core.views import NoteListView, NoteDetailView, NoteCreateView, NoteUpdateView, NoteDeleteView
+from django.contrib.auth import views as auth_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,4 +26,6 @@ urlpatterns = [
     path('create/', NoteCreateView.as_view(), name='note-create'),
     path('<int:pk>/update/', NoteUpdateView.as_view(), name='note-update'),
     path('<int:pk>/delete/', NoteDeleteView.as_view(), name='note-delete'),
+    path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]

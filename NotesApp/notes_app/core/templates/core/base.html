@@ -13,6 +13,19 @@
 
   <header>
     <h1>Notes App</h1>
+    <nav>
+      {% if user.is_authenticated %}
+      <span>Welcome, {{ user.username }}</span>
+      <a href="{% url 'note-create' %}">New Note</a>
+      <form action="{% url 'logout' %}" method="post" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit"
+          style="background:none;border:none;padding:0;color:blue;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:inherit;">Logout</button>
+      </form>
+      {% else %}
+      <a href="{% url 'login' %}">Login</a>
+      {% endif %}
+    </nav>
   </header>
 
   {% block content %}{% endblock %}
