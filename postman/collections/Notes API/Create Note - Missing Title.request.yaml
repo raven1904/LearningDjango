@@ -1,0 +1,26 @@
+$kind: http-request
+name: 'Create Note - Missing Title'
+method: POST
+url: '{{baseUrl}}/api/notes/'
+description: Attempt to create a note without a title - should return 400
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 400", function () {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test("Error message mentions title", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.have.property('error');
+        pm.expect(json.error.toLowerCase()).to.include('title');
+      });

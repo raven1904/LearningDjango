@@ -1,0 +1,35 @@
+$kind: http-request
+name: 'Create Note - Valid'
+method: POST
+url: '{{baseUrl}}/api/notes/'
+description: Create a new note with a valid title
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {"title": "Test Note from Postman"}
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status code is 201", function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test("Response has id and title", function () {
+        const json = pm.response.json();
+        pm.expect(json).to.have.property('id');
+        pm.expect(json).to.have.property('title');
+      });
+
+      pm.test("Title matches the sent value", function () {
+        const json = pm.response.json();
+        pm.expect(json.title).to.eql("Test Note from Postman");
+      });
+
+      pm.test("Response time is under 500ms", function () {
+        pm.expect(pm.response.responseTime).to.be.below(500);
+      });
