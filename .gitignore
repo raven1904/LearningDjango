@@ -36,3 +36,5 @@ htmlcov/
 #Media
 media/
 staticfiles/
+
+.postman/
