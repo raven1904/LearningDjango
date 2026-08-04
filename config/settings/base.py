@@ -1,5 +1,7 @@
 import environ
 from pathlib import Path
+from decouple import config
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -7,9 +9,13 @@ env = environ.Env()
 environ.Env.read_env(BASE_DIR / ".env")
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env("SECRET_KEY")
-
+SECRET_KEY = config("SECRET_KEY")
 ALLOWED_HOSTS = []
+
+DEBUG = config("DEBUG", cast=bool)
+
+# Custom user model
+AUTH_USER_MODEL = "accounts.User"
 
 
 # Application definition
@@ -23,7 +29,12 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "drf_spectacular",
-    "users",
+    "apps.accounts",
+    "apps.organizations",
+    "apps.projects",
+    "apps.tasks",
+    "apps.comments",
+    "apps.common",
 ]
 
 MIDDLEWARE = [
@@ -60,17 +71,32 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": env("DB_NAME"),
-        "USER": env("DB_USER"),
-        "PASSWORD": env("DB_PASSWORD"),
-        "HOST": env("DB_HOST"),
-        "PORT": env("DB_PORT"),
+        "NAME": config("DB_NAME"),
+        "USER": config("DB_USER"),
+        "PASSWORD": config("DB_PASSWORD"),
+        "HOST": config("DB_HOST"),
+        "PORT": config("DB_PORT", cast=int),
     }
 }
 
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
 }
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+}
+
+# Redirects unauthenticated users to the login page
+LOGIN_URL = "login"
+
+# Redirects users to the profile page immediately after a successful login
+LOGIN_REDIRECT_URL = "profile"
 
 
 # Password validation

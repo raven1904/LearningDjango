@@ -32,3 +32,7 @@ htmlcov/
 
 # Migrations cache
 *.pyc
+
+#Media
+media/
+staticfiles/

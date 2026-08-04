@@ -1,0 +1,21 @@
+$kind: http-request
+name: Access Protected Route - With Valid Token
+method: GET
+url: '{{baseUrl}}/api/schema/'
+order: 13000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{accessToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Server responds successfully with a valid token", function () {
+          pm.expect(pm.response.code).to.equal(200);
+      });
