@@ -20,5 +20,17 @@ class RegisterSerializer(serializers.ModelSerializer):
             "last_name",
         )
 
+    def validate_email(self, value):
+        value = value.lower().strip()
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+
+        return value
+
+    def validate(self, attrs):
+        if attrs["username"] == attrs["email"]:
+            raise serializers.ValidationError("Username cannot be the same as email.")
+        return attrs
+
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
