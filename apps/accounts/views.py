@@ -1,10 +1,9 @@
-from django.shortcuts import render
 from rest_framework import generics, status
-from .serializers import RegisterSerializer
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .serializers import ProfileSerializer, RegisterSerializer
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
@@ -12,12 +11,13 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        user = serializer.save()
 
+        profile_serializer = ProfileSerializer(user)
         return Response(
             {
                 "message": "User registered successfully.",
-                "data": serializer.data,
+                **profile_serializer.data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -27,9 +27,5 @@ class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response(
-            {
-                "username": request.user.username,
-                "email": request.user.email,
-            }
-        )
+        serializer = ProfileSerializer(request.user)
+        return Response(serializer.data)
