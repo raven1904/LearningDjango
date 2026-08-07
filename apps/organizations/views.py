@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import Organization
 from .serializers import OrganizationSerializer
+from .permissions import IsOrganizationOwner
 
 
 class OrganizationListCreateView(generics.ListCreateAPIView):
@@ -16,3 +17,14 @@ class OrganizationListCreateView(generics.ListCreateAPIView):
         organization = serializer.save(owner=self.request.user)
 
         organization.members.add(self.request.user)
+
+
+class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = OrganizationSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsOrganizationOwner,
+    ]
+
+    def get_queryset(self):
+        return Organization.objects.filter(members=self.request.user)
