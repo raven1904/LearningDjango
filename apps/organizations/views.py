@@ -5,6 +5,9 @@ from .models import Organization
 from .serializers import OrganizationSerializer
 from .permissions import IsOrganizationOwner
 
+from .models import Membership
+from django.db import transaction
+
 
 class OrganizationListCreateView(generics.ListCreateAPIView):
     serializer_class = OrganizationSerializer
@@ -13,10 +16,15 @@ class OrganizationListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         return Organization.objects.filter(members=self.request.user)
 
+    @transaction.atomic
     def perform_create(self, serializer):
         organization = serializer.save(owner=self.request.user)
 
-        organization.members.add(self.request.user)
+        Membership.objects.create(
+            organization=organization,
+            user=self.request.user,
+            role=Membership.Role.OWNER,
+        )
 
 
 class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -27,4 +35,4 @@ class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
     ]
 
     def get_queryset(self):
-        return Organization.objects.filter(members=self.request.user)
+        return Organization.objects.filter(memberships__user=self.request.user).distinct()
