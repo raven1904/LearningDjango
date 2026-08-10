@@ -1,13 +1,14 @@
 from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
-
-from .models import Organization
-from .serializers import OrganizationSerializer
-from .permissions import IsOrganizationOwner
-
-from .models import Membership
+from .permissions import IsOrganizationOwner, IsOrganizationMember, CanManageMembership
 from django.db import transaction
+from .models import Organization, Membership
 
+from .serializers import (
+    OrganizationSerializer,
+    MembershipSerializer,
+    MembershipRoleSerializer,
+)
 
 class OrganizationListCreateView(generics.ListCreateAPIView):
     serializer_class = OrganizationSerializer
@@ -35,4 +36,32 @@ class OrganizationDetailView(generics.RetrieveUpdateDestroyAPIView):
     ]
 
     def get_queryset(self):
-        return Organization.objects.filter(memberships__user=self.request.user).distinct()
+        return Organization.objects.filter(
+            memberships__user=self.request.user
+        ).distinct()
+
+
+class OrganizationMemberListView(generics.ListAPIView):
+    serializer_class = MembershipSerializer
+    permission_classes = [IsAuthenticated, IsOrganizationMember]
+
+    def get_queryset(self):
+        organization_id = self.kwargs.get("organization_id")
+
+        return Membership.objects.filter(
+            organization_id=organization_id,
+            organization__memberships__user=self.request.user,
+        ).select_related("user")
+
+
+class OrganizationMemberDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = MembershipRoleSerializer
+    permission_classes = [
+        IsAuthenticated,
+        CanManageMembership,
+    ]
+
+    def get_queryset(self):
+        return Membership.objects.filter(
+            organization_id=self.kwargs.get("organization_id")
+        )

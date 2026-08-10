@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Organization
 from .models import Membership
 
+
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
@@ -45,3 +46,17 @@ class MembershipSerializer(serializers.ModelSerializer):
             "username",
             "joined_at",
         )
+
+
+class MembershipRoleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Membership
+        fields = ("role",)
+
+    def validate_role(self, value):
+        if value == Membership.Role.OWNER:
+            raise serializers.ValidationError(
+                "Ownership cannot be assigned through this endpoint."
+            )
+
+        return value
