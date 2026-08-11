@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Organization
+from .models import Organization, OrganizationInvitation
 from .models import Membership
 
 
@@ -57,6 +57,37 @@ class MembershipRoleSerializer(serializers.ModelSerializer):
         if value == Membership.Role.OWNER:
             raise serializers.ValidationError(
                 "Ownership cannot be assigned through this endpoint."
+            )
+
+        return value
+
+
+class OrganizationInvitationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrganizationInvitation
+
+        fields = (
+            "id",
+            "email",
+            "role",
+            "status",
+            "expires_at",
+            "created_at",
+            "accepted_at",
+        )
+
+        read_only_fields = (
+            "id",
+            "status",
+            "expires_at",
+            "created_at",
+            "accepted_at",
+        )
+
+    def validate_role(self, value):
+        if value == Membership.Role.OWNER:
+            raise serializers.ValidationError(
+                "OWNER cannot be assigned through an invitation."
             )
 
         return value

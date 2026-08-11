@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APIClient
 
-from .models import Membership, Organization
+from .models import Membership, Organization, OrganizationInvitation
 
 User = get_user_model()
 
@@ -18,6 +21,16 @@ class OrganizationsApiTests(TestCase):
         self.other_user = User.objects.create_user(
             username="member",
             email="member@example.com",
+            password="TestPass123!",
+        )
+        self.bob = User.objects.create_user(
+            username="bob",
+            email="bob@example.com",
+            password="TestPass123!",
+        )
+        self.charlie = User.objects.create_user(
+            username="charlie",
+            email="charlie@example.com",
             password="TestPass123!",
         )
 
@@ -354,4 +367,165 @@ class OrganizationsApiTests(TestCase):
             {"role": Membership.Role.OWNER},
             format="json",
         )
+        self.assertEqual(response.status_code, 400)
+
+    def test_owner_invites_existing_user_and_invitation_stays_pending(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Invite Org",
+            description="Invitation lifecycle testing.",
+        )
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f"/api/organizations/{organization.pk}/invitations/",
+            {"email": self.bob.email, "role": Membership.Role.MEMBER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        invitation = OrganizationInvitation.objects.get(
+            organization=organization,
+            email=self.bob.email,
+        )
+        self.assertEqual(invitation.status, OrganizationInvitation.Status.PENDING)
+        self.assertFalse(
+            Membership.objects.filter(organization=organization, user=self.bob).exists()
+        )
+
+    def test_invitation_acceptance_creates_membership(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Accept Org",
+            description="Invitation acceptance testing.",
+        )
+        invitation = OrganizationInvitation.objects.create(
+            organization=organization,
+            invited_by=self.user,
+            email=self.bob.email,
+            role=Membership.Role.MEMBER,
+            token="accept-token",
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+        self.client.force_authenticate(user=self.bob)
+        response = self.client.post(
+            f"/api/organizations/invitations/{invitation.token}/accept/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, OrganizationInvitation.Status.ACCEPTED)
+        self.assertTrue(
+            Membership.objects.filter(
+                organization=organization,
+                user=self.bob,
+                role=Membership.Role.MEMBER,
+            ).exists()
+        )
+
+    def test_re_accepting_invitation_returns_400(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Reaccept Org",
+            description="Duplicate acceptance should fail.",
+        )
+        invitation = OrganizationInvitation.objects.create(
+            organization=organization,
+            invited_by=self.user,
+            email=self.bob.email,
+            role=Membership.Role.MEMBER,
+            token="reaccept-token",
+            expires_at=timezone.now() + timedelta(days=7),
+            status=OrganizationInvitation.Status.ACCEPTED,
+        )
+
+        self.client.force_authenticate(user=self.bob)
+        response = self.client.post(
+            f"/api/organizations/invitations/{invitation.token}/accept/"
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_non_invited_user_cannot_accept_someone_else_s_invitation(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Wrong User Org",
+            description="Only the invited user should accept.",
+        )
+        invitation = OrganizationInvitation.objects.create(
+            organization=organization,
+            invited_by=self.user,
+            email=self.bob.email,
+            role=Membership.Role.MEMBER,
+            token="wrong-user-token",
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+        self.client.force_authenticate(user=self.charlie)
+        response = self.client.post(
+            f"/api/organizations/invitations/{invitation.token}/accept/"
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_expired_invitation_is_marked_expired_and_returns_400(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Expired Org",
+            description="Expired invitations should be rejected.",
+        )
+        invitation = OrganizationInvitation.objects.create(
+            organization=organization,
+            invited_by=self.user,
+            email=self.bob.email,
+            role=Membership.Role.MEMBER,
+            token="expired-token",
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+
+        self.client.force_authenticate(user=self.bob)
+        response = self.client.post(
+            f"/api/organizations/invitations/{invitation.token}/accept/"
+        )
+
+        self.assertEqual(response.status_code, 400)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, OrganizationInvitation.Status.EXPIRED)
+
+    def test_member_cannot_invite_other_users(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Member Invite Org",
+            description="Members should not invite others.",
+        )
+        Membership.objects.create(
+            organization=organization,
+            user=self.other_user,
+            role=Membership.Role.MEMBER,
+        )
+
+        self.client.force_authenticate(user=self.other_user)
+        response = self.client.post(
+            f"/api/organizations/{organization.pk}/invitations/",
+            {"email": self.charlie.email, "role": Membership.Role.MEMBER},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_inviting_owner_role_is_rejected(self):
+        organization = self.create_organization(
+            owner=self.user,
+            name="Owner Role Org",
+            description="Owner role cannot be invited.",
+        )
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post(
+            f"/api/organizations/{organization.pk}/invitations/",
+            {"email": self.charlie.email, "role": Membership.Role.OWNER},
+            format="json",
+        )
+
         self.assertEqual(response.status_code, 400)

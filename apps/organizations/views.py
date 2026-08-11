@@ -1,14 +1,28 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
-from .permissions import IsOrganizationOwner, IsOrganizationMember, CanManageMembership
+from rest_framework.response import Response
+from rest_framework.exceptions import (
+    PermissionDenied,
+    ValidationError,
+)
+
 from django.db import transaction
-from .models import Organization, Membership
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
+import secrets
+from datetime import timedelta
+
+from .permissions import IsOrganizationOwner, IsOrganizationMember, CanManageMembership
+from .models import Organization, Membership, OrganizationInvitation
 
 from .serializers import (
     OrganizationSerializer,
     MembershipSerializer,
     MembershipRoleSerializer,
+    OrganizationInvitationSerializer,
 )
+
 
 class OrganizationListCreateView(generics.ListCreateAPIView):
     serializer_class = OrganizationSerializer
@@ -64,4 +78,86 @@ class OrganizationMemberDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         return Membership.objects.filter(
             organization_id=self.kwargs.get("organization_id")
+        )
+
+
+class OrganizationInvitationCreateView(generics.CreateAPIView):
+    serializer_class = OrganizationInvitationSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def perform_create(self, serializer):
+        organization_id = self.kwargs["organization_id"]
+
+        organization = get_object_or_404(
+            Organization,
+            pk=organization_id,
+        )
+
+        membership = get_object_or_404(
+            Membership,
+            organization=organization,
+            user=self.request.user,
+        )
+
+        if membership.role not in (
+            Membership.Role.OWNER,
+            Membership.Role.ADMIN,
+        ):
+            raise PermissionDenied("You cannot invite members.")
+
+        token = secrets.token_urlsafe(48)
+
+        serializer.save(
+            organization=organization,
+            invited_by=self.request.user,
+            token=token,
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+
+class OrganizationInvitationAcceptView(generics.GenericAPIView):
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def post(self, request, token):
+        invitation = get_object_or_404(
+            OrganizationInvitation,
+            token=token,
+        )
+
+        if invitation.status != (OrganizationInvitation.Status.PENDING):
+            raise ValidationError("This invitation is no longer active.")
+
+        if invitation.is_expired:
+            invitation.status = OrganizationInvitation.Status.EXPIRED
+            invitation.save(update_fields=["status"])
+
+            raise ValidationError("This invitation has expired.")
+
+        if request.user.email.lower() != (invitation.email.lower()):
+            raise PermissionDenied("This invitation belongs to another email address.")
+
+        with transaction.atomic():
+            Membership.objects.create(
+                organization=invitation.organization,
+                user=request.user,
+                role=invitation.role,
+            )
+
+            invitation.status = OrganizationInvitation.Status.ACCEPTED
+            invitation.accepted_at = timezone.now()
+
+            invitation.save(
+                update_fields=[
+                    "status",
+                    "accepted_at",
+                ]
+            )
+
+        return Response(
+            {"detail": ("Invitation accepted successfully.")},
+            status=status.HTTP_200_OK,
         )

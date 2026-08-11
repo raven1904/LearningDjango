@@ -1,11 +1,5 @@
 # TaskFlow API
-
-A production-oriented **Task Management REST API** built with **Django REST Framework**, designed to demonstrate real-world backend engineering practices beyond basic CRUD.
-
 TaskFlow provides a structured API for managing users, projects, tasks, authentication, permissions, and task workflows while following RESTful API design principles.
-
-The project is being developed as a portfolio-grade backend with an emphasis on **clean architecture, security, scalability, testing, documentation, and maintainability**.
-
 ---
 
 ## Features
