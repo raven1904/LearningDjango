@@ -15,6 +15,7 @@ from datetime import timedelta
 
 from .permissions import IsOrganizationOwner, IsOrganizationMember, CanManageMembership
 from .models import Organization, Membership, OrganizationInvitation
+from .policies import*
 
 from .serializers import (
     OrganizationSerializer,
@@ -101,11 +102,13 @@ class OrganizationInvitationCreateView(generics.CreateAPIView):
             user=self.request.user,
         )
 
-        if membership.role not in (
-            Membership.Role.OWNER,
-            Membership.Role.ADMIN,
+        if not can_manage_members(
+            self.request.user,
+            organization,
         ):
-            raise PermissionDenied("You cannot invite members.")
+            raise PermissionDenied(
+        "You cannot invite members."
+    )
 
         token = secrets.token_urlsafe(48)
 

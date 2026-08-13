@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
-from .models import Membership
+from .models import Membership, Organization
+from .policies import is_owner, is_member, is_admin, can_manage_members
 
 class IsOrganizationOwner(BasePermission):
     """
@@ -12,7 +13,7 @@ class IsOrganizationOwner(BasePermission):
         view,
         obj,
     ):
-        return obj.owner == request.user
+        return is_owner(request.user, obj)
 
 
 class IsOrganizationOwnerOrMemberReadOnly(BasePermission):
@@ -23,11 +24,8 @@ class IsOrganizationOwnerOrMemberReadOnly(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET", "HEAD", "OPTIONS"]:
-            return Membership.objects.filter(
-                organization=obj,
-                user=request.user,
-            ).exists()
-        return obj.owner == request.user
+            return is_member(request.user, obj)
+        return is_owner(request.user, obj)
 
 
 class IsOrganizationMember(BasePermission):
@@ -40,10 +38,14 @@ class IsOrganizationMember(BasePermission):
         if organization_id is None:
             return False
 
-        return Membership.objects.filter(
-            organization_id=organization_id,
-            user=request.user,
-        ).exists()
+        # Use policies helper for membership checks
+
+        try:
+            organization = Organization.objects.get(pk=organization_id)
+        except Organization.DoesNotExist:
+            return False
+
+        return is_member(request.user, organization)
 
     def has_object_permission(
         self,
@@ -51,10 +53,7 @@ class IsOrganizationMember(BasePermission):
         view,
         obj,
     ):
-        return Membership.objects.filter(
-            organization=obj,
-            user=request.user,
-        ).exists()
+        return is_member(request.user, obj)
 
 
 class IsOrganizationAdmin(BasePermission):
@@ -68,14 +67,7 @@ class IsOrganizationAdmin(BasePermission):
         view,
         obj,
     ):
-        return Membership.objects.filter(
-            organization=obj,
-            user=request.user,
-            role__in=[
-                Membership.Role.OWNER,
-                Membership.Role.ADMIN,
-            ],
-        ).exists()
+        return is_admin(request.user, obj)
 
 
 class CanManageMembership(BasePermission):
@@ -90,24 +82,16 @@ class CanManageMembership(BasePermission):
         view,
         obj,
     ):
+        # obj is a Membership instance representing the target membership
         if request.method == "DELETE" and obj.user == request.user:
             # Allow non-owner members to remove themselves from the organization.
             return obj.role != Membership.Role.OWNER
 
-        requester_membership = Membership.objects.filter(
-            organization=obj.organization,
-            user=request.user,
-        ).first()
-
-        if requester_membership is None:
+        # Allow only admins/owners to manage memberships
+        if not can_manage_members(request.user, obj.organization):
             return False
 
-        if requester_membership.role not in (
-            Membership.Role.OWNER,
-            Membership.Role.ADMIN,
-        ):
-            return False
-
+        # Protect owner membership from being modified
         if obj.role == Membership.Role.OWNER:
             return False
 
