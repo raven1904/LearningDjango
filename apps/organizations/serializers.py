@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Organization, OrganizationInvitation
-from .models import Membership
+from .models import Membership, Team, TeamMembership
+from django.contrib.auth import get_user_model
 
 
 class OrganizationSerializer(serializers.ModelSerializer):
@@ -91,3 +92,65 @@ class OrganizationInvitationSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+
+class TeamSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Team
+
+        fields = (
+            "id",
+            "name",
+            "description",
+            "created_by",
+            "created_at",
+            "updated_at",
+        )
+
+        read_only_fields = (
+            "id",
+            "created_by",
+            "created_at",
+            "updated_at",
+        )
+
+
+User = get_user_model()
+
+
+class UserSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+        )
+        read_only_fields = (
+            "id",
+            "username",
+            "email",
+        )
+
+
+class TeamMembershipSerializer(serializers.ModelSerializer):
+    user = UserSummarySerializer(
+        read_only=True,
+    )
+
+    class Meta:
+        model = TeamMembership
+
+        fields = (
+            "id",
+            "user",
+            "role",
+            "joined_at",
+        )
+
+        read_only_fields = (
+            "id",
+            "user",
+            "joined_at",
+        )

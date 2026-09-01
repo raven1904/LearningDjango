@@ -14,14 +14,16 @@ import secrets
 from datetime import timedelta
 
 from .permissions import IsOrganizationOwner, IsOrganizationMember, CanManageMembership
-from .models import Organization, Membership, OrganizationInvitation
+from .models import Organization, Membership, OrganizationInvitation, Team
 from .policies import*
+import policies
 
 from .serializers import (
     OrganizationSerializer,
     MembershipSerializer,
     MembershipRoleSerializer,
     OrganizationInvitationSerializer,
+    TeamSerializer
 )
 
 
@@ -163,4 +165,53 @@ class OrganizationInvitationAcceptView(generics.GenericAPIView):
         return Response(
             {"detail": ("Invitation accepted successfully.")},
             status=status.HTTP_200_OK,
+        )
+
+
+class TeamCreateView(generics.CreateAPIView):
+    serializer_class = TeamSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def perform_create(self, serializer):
+        organization = get_object_or_404(
+            Organization,
+            pk=self.kwargs["organization_id"],
+        )
+
+        if not policies.can_create_team(
+            self.request.user,
+            organization,
+        ):
+            raise PermissionDenied("You cannot create teams.")
+
+        serializer.save(
+            organization=organization,
+            created_by=self.request.user,
+        )
+
+
+class TeamListView(generics.ListAPIView):
+    serializer_class = TeamSerializer
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get_queryset(self):
+        organization = get_object_or_404(
+            Organization,
+            pk=self.kwargs["organization_id"],
+        )
+
+        if not policies.can_view_organization(
+            self.request.user,
+            organization,
+        ):
+            raise PermissionDenied("You are not a member of this organization.")
+
+        return Team.objects.filter(
+            organization=organization,
+        ).select_related(
+            "created_by",
         )

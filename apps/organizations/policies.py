@@ -44,3 +44,7 @@ def can_delete_organization(user, organization):
 
 def can_manage_members(user, organization):
     return is_admin(user, organization)
+
+
+def can_create_team(user, organization):
+    return is_admin(user, organization)

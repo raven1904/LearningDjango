@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission
-from .models import Membership, Organization
+from .models import Membership, Organization, Team, TeamMembership
 from .policies import is_owner, is_member, is_admin, can_manage_members
 
 class IsOrganizationOwner(BasePermission):
@@ -96,3 +96,15 @@ class CanManageMembership(BasePermission):
             return False
 
         return True
+
+
+def is_team_lead(user, team):
+    return TeamMembership.objects.filter(
+        team=team,
+        user=user,
+        role=TeamMembership.Role.LEAD,
+    ).exists()
+
+
+def can_manage_team(user, team):
+    return is_admin(user, team.organization) or is_team_lead(user, team)

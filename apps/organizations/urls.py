@@ -5,7 +5,9 @@ from .views import (
     OrganizationMemberListView,
     OrganizationMemberDetailView,
     OrganizationInvitationCreateView,
-    OrganizationInvitationAcceptView
+    OrganizationInvitationAcceptView,
+    TeamListView,
+    TeamCreateView,
 )
 
 urlpatterns = [
@@ -38,5 +40,15 @@ urlpatterns = [
         "invitations/<str:token>/accept/",
         OrganizationInvitationAcceptView.as_view(),
         name="organization-invitation-accept",
+    ),
+    path(
+        "<int:organization_id>/teams/",
+        TeamListView.as_view(),
+        name="team-list",
+    ),
+    path(
+        "<int:organization_id>/teams/create/",
+        TeamCreateView.as_view(),
+        name="team-create",
     ),
 ]

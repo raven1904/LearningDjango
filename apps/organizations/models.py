@@ -121,3 +121,84 @@ class OrganizationInvitation(models.Model):
 
     def __str__(self):
         return f"{self.email} -> " f"{self.organization.name} " f"({self.status})"
+
+
+class Team(models.Model):
+    organization = models.ForeignKey(
+        "Organization",
+        on_delete=models.CASCADE,
+        related_name="teams",
+    )
+
+    name = models.CharField(
+        max_length=100,
+    )
+
+    description = models.TextField(
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_teams",
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "name"],
+                name="unique_team_name_per_organization",
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class TeamMembership(models.Model):
+
+    class Role(models.TextChoices):
+        LEAD = "LEAD", "Team Lead"
+        MEMBER = "MEMBER", "Member"
+
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name="memberships",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="team_memberships",
+    )
+
+    role = models.CharField(
+        max_length=20,
+        choices=Role.choices,
+        default=Role.MEMBER,
+    )
+
+    joined_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["team", "user"],
+                name="unique_team_membership",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user} → " f"{self.team} " f"({self.role})"
